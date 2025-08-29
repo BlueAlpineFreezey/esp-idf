@@ -9,7 +9,6 @@
 #include <limits.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <time.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
@@ -30,10 +29,6 @@ struct cached_data{
 #endif
 	FILINFO fileinfo;
 };
-#endif // CONFIG_VFS_SUPPORT_DIR
-
-#if !defined(FILENAME_MAX)
-#define FILENAME_MAX 255
 #endif
 
 typedef struct {
@@ -49,7 +44,7 @@ typedef struct {
     char dir_path[FILENAME_MAX]; /* variable to store path of opened directory*/
     struct cached_data cached_fileinfo;
 #endif
-    FIL files[];   /* array with max_files entries; must be the final member of the structure */
+    FIL files[0];   /* array with max_files entries; must be the final member of the structure */
 } vfs_fat_ctx_t;
 
 typedef struct {
@@ -205,6 +200,16 @@ esp_err_t esp_vfs_fat_register_cfg(const esp_vfs_fat_conf_t* conf, FATFS** out_f
     if (fat_ctx == NULL) {
         return ESP_ERR_NO_MEM;
     }
+
+    // ESP_LOGI("ctx layout", "pointer: 0x%X, offsets: lock=%d flags=%d, fs=%d, tmp1=%d, tmp2=%d, files=%d",
+    // fat_ctx,
+    // offsetof(vfs_fat_ctx_t, lock),
+    // offsetof(vfs_fat_ctx_t, flags),
+    // offsetof(vfs_fat_ctx_t, fs),
+    // offsetof(vfs_fat_ctx_t, tmp_path_buf),
+    // offsetof(vfs_fat_ctx_t, tmp_path_buf2),
+    // offsetof(vfs_fat_ctx_t, files));
+    
     memset(fat_ctx, 0, ctx_size);
     fat_ctx->flags = ff_memalloc(max_files * sizeof(*fat_ctx->flags));
     if (fat_ctx->flags == NULL) {
@@ -234,7 +239,7 @@ esp_err_t esp_vfs_fat_register_cfg(const esp_vfs_fat_conf_t* conf, FATFS** out_f
     return ESP_OK;
 }
 
-esp_err_t esp_vfs_fat_unregister_path(const char* base_path)
+esp_err_t  esp_vfs_fat_unregister_path(const char* base_path)
 {
     size_t ctx = find_context_index_by_path(base_path);
     if (ctx == FF_VOLUMES) {
