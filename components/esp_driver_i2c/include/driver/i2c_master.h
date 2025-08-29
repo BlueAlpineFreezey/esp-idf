@@ -11,6 +11,9 @@
 #include "driver/i2c_types.h"
 #include "hal/gpio_types.h"
 
+#define I2C_BUGFIX_1
+#define ANOTHER_I2C_FIX
+
 #ifdef __cplusplus
 extern "C" {
 #endif

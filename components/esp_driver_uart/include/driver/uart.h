@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+#define UART_GET_SELECTLOCK_IN_IRAM
+
 /* @brief When calling `uart_set_pin`, instead of GPIO number, `UART_PIN_NO_CHANGE`
  *        can be provided to keep the currently allocated pin.
  */
@@ -34,8 +36,7 @@ extern "C" {
  * @brief UART configuration parameters for uart_param_config function
  */
 typedef struct {
-    int baud_rate;                      /*!< UART baud rate
-                                             Note that the actual baud rate set could have a slight deviation from the user-configured value due to rounding error*/
+    int baud_rate;                      /*!< UART baud rate*/
     uart_word_length_t data_bits;       /*!< UART byte size*/
     uart_parity_t parity;               /*!< UART parity mode*/
     uart_stop_bits_t stop_bits;         /*!< UART stop bits*/
@@ -226,23 +227,19 @@ esp_err_t uart_get_parity(uart_port_t uart_num, uart_parity_t* parity_mode);
 esp_err_t uart_get_sclk_freq(uart_sclk_t sclk, uint32_t* out_freq_hz);
 
 /**
- * @brief Set desired UART baud rate.
- *
- * Note that the actual baud rate set could have a slight deviation from the user-configured value due to rounding error.
+ * @brief Set UART baud rate.
  *
  * @param uart_num UART port number, the max port number is (UART_NUM_MAX -1).
  * @param baudrate UART baud rate.
  *
  * @return
- *     - ESP_FAIL Parameter error, such as baud rate unachievable
+ *     - ESP_FAIL Parameter error
  *     - ESP_OK   Success
  */
 esp_err_t uart_set_baudrate(uart_port_t uart_num, uint32_t baudrate);
 
 /**
- * @brief Get the actual UART baud rate.
- *
- * It returns the real UART rate set in the hardware. It could have a slight deviation from the user-configured baud rate.
+ * @brief Get the UART baud rate configuration.
  *
  * @param uart_num UART port number, the max port number is (UART_NUM_MAX -1).
  * @param baudrate Pointer to accept value of UART baud rate
@@ -466,7 +463,7 @@ esp_err_t uart_set_tx_idle_num(uart_port_t uart_num, uint16_t idle_num);
  *
  * @return
  *     - ESP_OK   Success
- *     - ESP_FAIL Parameter error, such as baud rate unachievable
+ *     - ESP_FAIL Parameter error
  */
 esp_err_t uart_param_config(uart_port_t uart_num, const uart_config_t *uart_config);
 

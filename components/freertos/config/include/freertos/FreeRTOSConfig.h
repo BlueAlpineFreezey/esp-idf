@@ -83,7 +83,7 @@
 
 /* ------------------ Scheduler Related -------------------- */
 
-#define configUSE_PREEMPTION                         1
+#define configUSE_PREEMPTION                         0
 #define configUSE_TICKLESS_IDLE                      CONFIG_FREERTOS_USE_TICKLESS_IDLE
 #if configUSE_TICKLESS_IDLE
     #define configEXPECTED_IDLE_TIME_BEFORE_SLEEP    CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP

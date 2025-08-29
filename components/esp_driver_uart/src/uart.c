@@ -36,9 +36,6 @@
 #include "driver/rtc_io.h"
 #include "hal/rtc_io_ll.h"
 #include "driver/lp_io.h"
-#if SOC_LP_GPIO_MATRIX_SUPPORTED
-#include "soc/lp_gpio_pins.h"
-#endif
 #endif
 #include "clk_ctrl_os.h"
 #include "esp_pm.h"
@@ -363,20 +360,20 @@ esp_err_t uart_set_baudrate(uart_port_t uart_num, uint32_t baud_rate)
     uart_hal_get_sclk(&(uart_context[uart_num].hal), &src_clk);
     ESP_RETURN_ON_ERROR(esp_clk_tree_src_get_freq_hz(src_clk, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, &sclk_freq), UART_TAG, "Invalid src_clk");
 
-    bool success = false;
     UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+
     if (uart_num < SOC_UART_HP_NUM) {
         HP_UART_SRC_CLK_ATOMIC() {
-            success = uart_hal_set_baudrate(&(uart_context[uart_num].hal), baud_rate, sclk_freq);
+            uart_hal_set_baudrate(&(uart_context[uart_num].hal), baud_rate, sclk_freq);
         }
     }
 #if (SOC_UART_LP_NUM >= 1)
     else {
-        success = lp_uart_ll_set_baudrate(uart_context[uart_num].hal.dev, baud_rate, sclk_freq);
+        lp_uart_ll_set_baudrate(uart_context[uart_num].hal.dev, baud_rate, sclk_freq);
     }
 #endif
+
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-    ESP_RETURN_ON_FALSE(success, ESP_FAIL, UART_TAG, "baud rate unachievable");
     return ESP_OK;
 }
 
@@ -917,7 +914,6 @@ esp_err_t uart_set_pin(uart_port_t uart_num, int tx_io_num, int rx_io_num, int r
     }
 
     // IO reserve
-    uart_context[uart_num].io_reserved_mask = io_reserve_mask;
     uint64_t old_busy_mask = esp_gpio_reserve(io_reserve_mask);
     uint64_t conflict_mask = old_busy_mask & io_reserve_mask;
     while (conflict_mask > 0) {
@@ -1946,7 +1942,7 @@ void uart_set_select_notif_callback(uart_port_t uart_num, uart_select_notif_call
     }
 }
 
-portMUX_TYPE *uart_get_selectlock(void)
+portMUX_TYPE IRAM_ATTR *uart_get_selectlock(void)
 {
     return &uart_selectlock;
 }
