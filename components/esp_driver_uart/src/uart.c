@@ -1517,7 +1517,7 @@ static int uart_tx_all(uart_port_t uart_num, const char *src, size_t size, bool 
     if (size == 0) {
         return 0;
     }
-    size_t original_size = size;
+    int original_size = size;
 
     //lock for uart_tx
     xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (TickType_t)portMAX_DELAY);
@@ -1525,7 +1525,9 @@ static int uart_tx_all(uart_port_t uart_num, const char *src, size_t size, bool 
     esp_pm_lock_acquire(p_uart_obj[uart_num]->pm_lock);
 #endif
     p_uart_obj[uart_num]->coll_det_flg = false;
-    if (p_uart_obj[uart_num]->tx_buf_size > 0) {
+    /// If using a TX buffer (UART0/dbg)
+    if (p_uart_obj[uart_num]->tx_buf_size > 0)
+    {
         size_t max_size = xRingbufferGetMaxItemSize(p_uart_obj[uart_num]->tx_ring_buf);
         int offset = 0;
         uart_tx_data_t evt;
@@ -1544,11 +1546,16 @@ static int uart_tx_all(uart_port_t uart_num, const char *src, size_t size, bool 
             offset += send_size;
             uart_enable_tx_intr(uart_num, 1, UART_THRESHOLD_NUM(uart_num, UART_EMPTY_THRESH_DEFAULT));
         }
-    } else {
-        while (size) {
+    }
+    /// If not using a TX buffer (UART1/datalink)
+    else
+    {
+        while (size)
+        {
             //semaphore for tx_fifo available
-            if (pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (TickType_t)portMAX_DELAY)) {
-                uint32_t sent = uart_enable_tx_write_fifo(uart_num, (const uint8_t *) src, size);
+            if (pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (TickType_t)portMAX_DELAY))
+            {
+                uint32_t sent = uart_enable_tx_write_fifo(uart_num, (const uint8_t*)src, size);
                 if (sent < size) {
                     p_uart_obj[uart_num]->tx_waiting_fifo = true;
                     uart_enable_tx_intr(uart_num, 1, UART_THRESHOLD_NUM(uart_num, UART_EMPTY_THRESH_DEFAULT));
@@ -1556,14 +1563,65 @@ static int uart_tx_all(uart_port_t uart_num, const char *src, size_t size, bool 
                 size -= sent;
                 src += sent;
             }
+            else
+            {
+                original_size = -(__LINE__);
+            }
         }
-        if (brk_en) {
+        if (brk_en)
+        {
             uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_TX_BRK_DONE);
             UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
             uart_hal_tx_break(&(uart_context[uart_num].hal), brk_len);
             uart_hal_ena_intr_mask(&(uart_context[uart_num].hal), UART_INTR_TX_BRK_DONE);
             UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
-            xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (TickType_t)portMAX_DELAY);
+
+            /// hacky fix to maybe stop our datalink from crashing:
+            if (xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, pdMS_TO_TICKS(100)) != pdTRUE)
+            {
+                UART_ENTER_CRITICAL(&(uart_context[uart_num].spinlock));
+
+                    // gather status info
+                    uint32_t fsmStatus = uart_ll_get_tx_fsm_status(uart_num);
+                    uint32_t irqStatus = uart_ll_get_intsts_mask(uart_context[uart_num].hal.dev);
+                    bool wasWaitingBrk  = p_uart_obj[uart_num]->tx_waiting_brk;
+                    bool wasWaitingFifo = p_uart_obj[uart_num]->tx_waiting_fifo;
+
+                    // clear statuses
+                    uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), /*UART_INTR_TXFIFO_EMPTY |*/ UART_INTR_TX_BRK_DONE);
+                    uart_hal_clr_intsts_mask  (&(uart_context[uart_num].hal), /*UART_INTR_TXFIFO_EMPTY |*/ UART_INTR_TX_BRK_DONE);
+                    p_uart_obj[uart_num]->tx_waiting_brk = 0;
+                    // p_uart_obj[uart_num]->tx_waiting_fifo = false;
+
+                    // uart_ll_txfifo_rst does not reset UART1 or UART2 becasue of a hardware problem, and we might use UART2 later so I'm not going to do that here yet.
+                    // FORCE_INLINE_ATTR void uart_ll_txfifo_rst(uart_dev_t * hw)
+                    // {
+                    //     if (hw == &UART0) {
+                    //         hw->conf0.txfifo_rst = 1;
+                    //         hw->conf0.txfifo_rst = 0;
+                    //     }
+                    // }
+                    // xSemaphoreGiveFromISR(p_uart_obj[uart_num]->tx_fifo_sem, NULL);
+
+                UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
+
+                // give the semaphores
+                xSemaphoreGive(p_uart_obj[uart_num]->tx_brk_sem);
+                // xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
+
+                ESP_LOGE(UART_TAG, "UART %i Unable to take 'tx_brk_sem'. Flags have been reset but the FIFO has not. The module status was:"
+                    "\n\tFSM Status: 0x%08X"
+                    "\n\tIRQ Status: 0x%08X"
+                    "\n\tWaiting bk: %s"
+                    "\n\tWaiting tx: %s",
+                    (int)uart_num,
+                    fsmStatus,
+                    irqStatus,
+                    wasWaitingBrk  ? "true" : "false",
+                    wasWaitingFifo ? "true" : "false"
+                );
+                original_size = -(__LINE__);
+            }
         }
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
     }
