@@ -1609,17 +1609,19 @@ static int uart_tx_all(uart_port_t uart_num, const char *src, size_t size, bool 
                 xSemaphoreGive(p_uart_obj[uart_num]->tx_brk_sem);
                 // xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
 
-                ESP_LOGE(UART_TAG, "UART %i Unable to take 'tx_brk_sem'. Flags have been reset but the FIFO has not. The module status was:"
-                    "\n\tFSM Status: 0x%08X"
-                    "\n\tIRQ Status: 0x%08X"
-                    "\n\tWaiting bk: %s"
-                    "\n\tWaiting tx: %s",
-                    (int)uart_num,
-                    fsmStatus,
-                    irqStatus,
-                    wasWaitingBrk  ? "true" : "false",
-                    wasWaitingFifo ? "true" : "false"
-                );
+                /// TODO: We can't print this from the tray rack board when we are already in the process of transmitting a packet. This will create
+                /// a deadlock
+                // ESP_LOGE(UART_TAG, "UART %i Unable to take 'tx_brk_sem'. Flags have been reset but the FIFO has not. The module status was:"
+                //     "\n\tFSM Status: 0x%08X"
+                //     "\n\tIRQ Status: 0x%08X"
+                //     "\n\tWaiting bk: %s"
+                //     "\n\tWaiting tx: %s",
+                //     (int)uart_num,
+                //     fsmStatus,
+                //     irqStatus,
+                //     wasWaitingBrk  ? "true" : "false",
+                //     wasWaitingFifo ? "true" : "false"
+                // );
                 original_size = -(__LINE__);
             }
         }
