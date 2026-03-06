@@ -821,3 +821,22 @@ esp_err_t esp_task_wdt_print_triggered_tasks(task_wdt_msg_handler msg_handler, v
     }
     return ESP_OK;
 }
+
+
+/// Blue Alpine extension funciton
+esp_err_t esp_task_wdt_get_triggered_tasks(void (*task_wdt_add_handle_cb)(TaskHandle_t, void*), void* opaque)
+{
+    if (!task_wdt_add_handle_cb)                 return ESP_ERR_INVALID_ARG;
+    if (SLIST_EMPTY(&p_twdt_obj->entries_slist)) return ESP_FAIL;
+
+    // Find what entries triggered the TWDT timeout (i.e., which entries have not been reset)
+    twdt_entry_t* entry;
+    SLIST_FOREACH(entry, &p_twdt_obj->entries_slist, slist_entry)
+    {
+        if (!entry->has_reset && entry->task_handle)
+        {
+            task_wdt_add_handle_cb(entry->task_handle, opaque);
+        }
+    }
+    return ESP_OK;
+}
