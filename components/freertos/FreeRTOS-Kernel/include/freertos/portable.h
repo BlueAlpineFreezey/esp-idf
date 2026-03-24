@@ -37,6 +37,9 @@
 #ifndef PORTABLE_H
 #define PORTABLE_H
 
+/// Blue Alpine Extension: allow stacks to malloc external RAM
+#include <sdkconfig.h>
+
 /* Each FreeRTOS port has a unique portmacro.h header file.  Originally a
  * pre-processor definition was used to ensure the pre-processor found the correct
  * portmacro.h file for the port being used.  That scheme was deprecated in favour
@@ -184,9 +187,13 @@ void vPortInitialiseBlocks( void ) PRIVILEGED_FUNCTION;
 size_t xPortGetFreeHeapSize( void ) PRIVILEGED_FUNCTION;
 size_t xPortGetMinimumEverFreeHeapSize( void ) PRIVILEGED_FUNCTION;
 
+/// Blue Alpine Extension: allow stacks to malloc external RAM
 #if ( configSTACK_ALLOCATION_FROM_SEPARATE_HEAP == 1 )
     void * pvPortMallocStack( size_t xSize ) PRIVILEGED_FUNCTION;
     void vPortFreeStack( void * pv ) PRIVILEGED_FUNCTION;
+#elif (CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM == 1)
+    #define pvPortMallocStack    malloc
+    #define vPortFreeStack       free
 #else
     #define pvPortMallocStack    pvPortMalloc
     #define vPortFreeStack       vPortFree
