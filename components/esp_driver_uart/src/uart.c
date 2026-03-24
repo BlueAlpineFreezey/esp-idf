@@ -914,13 +914,16 @@ esp_err_t uart_set_pin(uart_port_t uart_num, int tx_io_num, int rx_io_num, int r
     }
 
     // IO reserve
-    uint64_t old_busy_mask = esp_gpio_reserve(io_reserve_mask);
-    uint64_t conflict_mask = old_busy_mask & io_reserve_mask;
-    while (conflict_mask > 0) {
-        uint8_t pos = __builtin_ctzll(conflict_mask);
-        conflict_mask &= ~(1ULL << pos);
-        ESP_LOGW(UART_TAG, "GPIO %d is not usable, maybe used by others", pos);
-    }
+    esp_gpio_reserve(io_reserve_mask);
+    
+    /// removed by Ben because we don't care about this
+    // uint64_t old_busy_mask = esp_gpio_reserve(io_reserve_mask);
+    // uint64_t conflict_mask = old_busy_mask & io_reserve_mask;
+    // while (conflict_mask > 0) {
+    //     uint8_t pos = __builtin_ctzll(conflict_mask);
+    //     conflict_mask &= ~(1ULL << pos);
+    //     ESP_LOGW(UART_TAG, "GPIO %d is not usable, maybe used by others", pos);
+    // }
 
     return ESP_OK;
 }
