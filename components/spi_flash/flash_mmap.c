@@ -47,6 +47,10 @@ extern char _rodata_reserved_end;
 
 #if !CONFIG_SPI_FLASH_ROM_IMPL
 
+/// Blue Alpine Addition: The HAL cache functions do not take the static cache mutex
+#include <esp_cache.h>
+
+
 
 typedef struct mmap_block_t {
     uint32_t *vaddr_list;
@@ -312,8 +316,10 @@ IRAM_ATTR bool spi_flash_check_and_flush_cache(size_t start_addr, size_t length)
             return true;
 #else // CONFIG_IDF_TARGET_ESP32
             if (vaddr != NULL) {
-                cache_hal_invalidate_addr((uint32_t)vaddr, SPI_FLASH_MMU_PAGE_SIZE);
-                ret = true;
+                // cache_hal_invalidate_addr((uint32_t)vaddr, SPI_FLASH_MMU_PAGE_SIZE);
+                // ret = true;
+                /// Blue Alpine Addition: unlike the hal function, esp_cache_msync actually bothers to take the cache mutex first
+                ret = esp_cache_msync((void*)vaddr, SPI_FLASH_MMU_PAGE_SIZE, 0);
             }
 #endif // CONFIG_IDF_TARGET_ESP32
 
