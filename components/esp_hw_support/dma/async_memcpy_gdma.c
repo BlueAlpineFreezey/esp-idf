@@ -434,7 +434,7 @@ err:
     return ret;
 }
 
-static bool mcp_gdma_rx_eof_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
+IRAM_ATTR static bool mcp_gdma_rx_eof_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
 {
     bool need_yield = false;
     async_memcpy_gdma_context_t *mcp_gdma = (async_memcpy_gdma_context_t *)user_data;
